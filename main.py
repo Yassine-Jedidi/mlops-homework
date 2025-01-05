@@ -1,21 +1,22 @@
+from src.load_ckpts import load_checkpoint
+from src.test import test_classifier
+from src.train import train_classifier
+from src.config import *
+from src.cnn import Classifier
+from src.datasets import Dataset
+from sklearn.model_selection import KFold
+from torch.utils.data import DataLoader, SubsetRandomSampler
+from torchvision import transforms
+import torch
 import argparse
 import logging
 import os
 import warnings
 
 warnings.filterwarnings('ignore')
-import torch
-from torchvision import transforms
-from torch.utils.data import DataLoader, SubsetRandomSampler
-from sklearn.model_selection import KFold
-from src.datasets import Dataset
-from src.cnn import Classifier
-from src.config import *
-from src.train import train_classifier
-from src.test import test_classifier
-from src.load_ckpts import load_checkpoint
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def main(args):
@@ -23,17 +24,20 @@ def main(args):
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                             0.229, 0.224, 0.225]),
     ])
 
     # Initialize the CNN model
-    model = Classifier(len(CLASS_NAMES), backbone=BACKBONE, freeze_backbone=FREEZE_BACKBONE)
+    model = Classifier(len(CLASS_NAMES), backbone=BACKBONE,
+                       freeze_backbone=FREEZE_BACKBONE)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
 
     if args.mode == "train":
         # Load the entire dataset
-        dataset = Dataset(root_dir=args.data_path, transform=transform, mode=args.mode)
+        dataset = Dataset(root_dir=args.data_path,
+                          transform=transform, mode=args.mode)
         # create dirs
         if not os.path.exists(MODEL_DIR):
             os.makedirs(MODEL_DIR)
@@ -43,7 +47,7 @@ def main(args):
         criterion = torch.nn.CrossEntropyLoss()
 
         # Define K-fold cross-validation with k=5
-        k_folds = 5
+        k_folds = 2
         kfold = KFold(n_splits=k_folds, shuffle=True)
 
         # K-fold Cross Validation model evaluation
@@ -57,8 +61,10 @@ def main(args):
             val_subsampler = SubsetRandomSampler(val_ids)
 
             # Define data loaders for training and validation
-            train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, sampler=train_subsampler)
-            val_loader = DataLoader(dataset, batch_size=BATCH_SIZE, sampler=val_subsampler)
+            train_loader = DataLoader(
+                dataset, batch_size=BATCH_SIZE, sampler=train_subsampler)
+            val_loader = DataLoader(
+                dataset, batch_size=BATCH_SIZE, sampler=val_subsampler)
 
             # Initialise optimizer
             optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
@@ -85,11 +91,13 @@ def main(args):
         logging.info('Training complete.')
 
     # Create the dataset
-    testset = Dataset(root_dir=args.data_path, transform=transform, mode=args.mode)
+    testset = Dataset(root_dir=args.data_path,
+                      transform=transform, mode=args.mode)
     test_loader = DataLoader(dataset=testset, batch_size=1, shuffle=False)
     # Load model checkpoint
     model, _, _ = load_checkpoint(model, args.model_path)
-    test_classifier(model, test_loader, PLOTS_DIR, BACKBONE, FREEZE_BACKBONE, CLASS_NAMES, device)
+    test_classifier(model, test_loader, PLOTS_DIR, BACKBONE,
+                    FREEZE_BACKBONE, CLASS_NAMES, device)
 
 
 if __name__ == "__main__":
@@ -98,7 +106,7 @@ if __name__ == "__main__":
                         help="Mode to run: 'train' or 'test'")
     parser.add_argument("--data_path", type=str, required=True,
                         help="Path to dataset")
-    parser.add_argument("--model_path", type=str, default="./models/",
+    parser.add_argument("--model_path", type=str, default="./models/cnn_resnet18_freeze_backbone_False.pth",
                         help="Directory to save or load the model")
 
     args = parser.parse_args()
